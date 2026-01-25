@@ -41,12 +41,31 @@ class _ScannerPageState extends State<ScannerPage> {
     _initBle();
   }
 
+  // Future<void> _initBle() async {
+  //   if (await FlutterBluePlus.isSupported == false) return;
+  //   if (Platform.isAndroid) await FlutterBluePlus.turnOn();
+
+  //   FlutterBluePlus.scanResults.listen((results) {
+  //     setState(() => _scanResults = results);
+  //   });
+
+  //   FlutterBluePlus.isScanning.listen((scanning) {
+  //     setState(() => _isScanning = scanning);
+  //   });
+  // }
+
   Future<void> _initBle() async {
     if (await FlutterBluePlus.isSupported == false) return;
     if (Platform.isAndroid) await FlutterBluePlus.turnOn();
 
     FlutterBluePlus.scanResults.listen((results) {
-      setState(() => _scanResults = results);
+      final filteredResults = results
+          .where((r) => r.device.platformName.isNotEmpty)
+          .toList();
+
+      setState(() {
+        _scanResults = filteredResults;
+      });
     });
 
     FlutterBluePlus.isScanning.listen((scanning) {
