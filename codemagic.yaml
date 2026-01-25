@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build
+    name: iOS Build (IPA)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -18,30 +18,9 @@ workflows:
           cd ios
           pod install
 
-      - name: Build iOS
+      - name: Build IPA (no signing)
         script: |
-          flutter build ios --release --no-codesign
-          cd build/ios/iphoneos
-          zip -r Runner.zip Runner.app
+          flutter build ipa --release --no-codesign
 
     artifacts:
-      - build/ios/iphoneos/Runner.zip
-
-  android-workflow:
-    name: Android Build
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-
-    environment:
-      flutter: stable
-      java: 17
-
-    scripts:
-      - name: Get Flutter packages
-        script: flutter pub get
-
-      - name: Build APK
-        script: flutter build apk --release
-
-    artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/ios/ipa/*.ipa
