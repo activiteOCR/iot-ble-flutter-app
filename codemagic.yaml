@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (IPA)
+    name: iOS Build (signed IPA)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -8,6 +8,11 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
+
+      # Ceci suppose que tu ajoutes les credentials dans Codemagic UI:
+      # - App Store Connect API key (ou Apple ID)
+      # - iOS Development certificate (.p12)
+      # - Provisioning profile (Development)
 
     scripts:
       - name: Get Flutter packages
@@ -18,9 +23,10 @@ workflows:
           cd ios
           pod install
 
-      - name: Build IPA (no signing)
+      - name: Build signed IPA
         script: |
-          flutter build ipa --release --no-codesign
+          flutter build ipa --release
 
     artifacts:
       - build/ios/ipa/*.ipa
+      - build/ios/archive/*.xcarchive
