@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (unsigned IPA - xcarchive method)
+    name: iOS Build (unsigned IPA – symlink safe)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -38,29 +38,8 @@ workflows:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      - name: Package unsigned IPA from archive
+      - name: Package unsigned IPA (preserve symlinks)
         script: |
           APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
 
-          echo "=== App path ==="
-          ls -la "$APP_PATH"
-
-          echo "=== Frameworks check ==="
-          ls -la "$APP_PATH/Frameworks" || true
-          du -sh "$APP_PATH" || true
-          du -sh "$APP_PATH/Frameworks" || true
-
-          rm -rf build/Payload
-          mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/
-
-          cd build
-          rm -f iot-ble-scanner.ipa
-          zip -r iot-ble-scanner.ipa Payload
-
-          echo "=== IPA content (top) ==="
-          unzip -l iot-ble-scanner.ipa | head -n 80
-
-    artifacts:
-      - build/iot-ble-scanner.ipa
-      - build/Runner.xcarchive
+          echo "=== Frame
