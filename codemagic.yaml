@@ -42,4 +42,21 @@ workflows:
         script: |
           APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
 
-          echo "=== Frame
+          echo "=== Frameworks size ==="
+          du -sh "$APP_PATH/Frameworks"
+
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+
+          cd build
+          rm -f iot-ble-scanner.ipa
+
+          # 🔑 CRITICAL: -y to preserve symlinks
+          zip -r -y iot-ble-scanner.ipa Payload
+
+          echo "=== IPA size ==="
+          ls -lh iot-ble-scanner.ipa
+
+    artifacts:
+      - build/iot-ble-scanner.ipa
