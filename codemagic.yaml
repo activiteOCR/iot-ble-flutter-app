@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (unsigned IPA for Sideloadly)
+    name: iOS Build (unsigned IPA - xcarchive method)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -10,44 +10,57 @@ workflows:
       cocoapods: default
 
     scripts:
-      - name: Flutter packages
+      - name: Flutter deps
         script: |
           flutter clean
           flutter pub get
 
-      - name: Install CocoaPods
+      - name: CocoaPods
         script: |
           cd ios
           pod install
           cd ..
 
-      - name: Build iOS (device, no codesign)
+      - name: Build iOS (no codesign)
         script: |
           flutter build ios --release --no-codesign
 
-      - name: Package unsigned IPA
+      - name: Xcode archive (iphoneos, no codesign)
         script: |
-          cd build/ios/iphoneos
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/Runner.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-          # Create Payload structure required by IPA
-          rm -rf Payload
-          mkdir -p Payload
-          cp -R Runner.app Payload/
+      - name: Package unsigned IPA from archive
+        script: |
+          APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
 
-          # Zip as .ipa
+          echo "=== App path ==="
+          ls -la "$APP_PATH"
+
+          echo "=== Frameworks check ==="
+          ls -la "$APP_PATH/Frameworks" || true
+          du -sh "$APP_PATH" || true
+          du -sh "$APP_PATH/Frameworks" || true
+
+          rm -rf build/Payload
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+
+          cd build
           rm -f iot-ble-scanner.ipa
           zip -r iot-ble-scanner.ipa Payload
 
-          # Sanity checks (very useful in logs)
           echo "=== IPA content (top) ==="
-          unzip -l iot-ble-scanner.ipa | head -n 60
-
-          echo "=== Runner arch ==="
-          file Payload/Runner.app/Runner || true
-
-          echo "=== Sizes ==="
-          ls -lh iot-ble-scanner.ipa
-          du -sh Payload/Runner.app
+          unzip -l iot-ble-scanner.ipa | head -n 80
 
     artifacts:
-      - build/ios/iphoneos/iot-ble-scanner.ipa
+      - build/iot-ble-scanner.ipa
+      - build/Runner.xcarchive
