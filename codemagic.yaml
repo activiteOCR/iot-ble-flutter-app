@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (unsigned IPA – symlink safe)
+    name: iOS Build (unsigned IPA - sideloadly)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -12,21 +12,25 @@ workflows:
     scripts:
       - name: Flutter deps
         script: |
+          set -e
           flutter clean
           flutter pub get
 
       - name: CocoaPods
         script: |
+          set -e
           cd ios
           pod install
           cd ..
 
       - name: Build iOS (no codesign)
         script: |
+          set -e
           flutter build ios --release --no-codesign
 
       - name: Xcode archive (iphoneos, no codesign)
         script: |
+          set -e
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -38,25 +42,43 @@ workflows:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      - name: Package unsigned IPA (preserve symlinks)
+      - name: Package unsigned IPA (ditto + preserve symlinks)
         script: |
+          set -e
+
           APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
 
-          echo "=== Frameworks size ==="
-          du -sh "$APP_PATH/Frameworks"
+          echo "=== APP_PATH exists? ==="
+          ls -la "$APP_PATH" || true
 
+          echo "=== Frameworks listing ==="
+          ls -la "$APP_PATH/Frameworks" || true
+
+          echo "=== Sizes ==="
+          du -sh "$APP_PATH" || true
+          du -sh "$APP_PATH/Frameworks" || true
+
+          echo "=== Runner architecture ==="
+          file "$APP_PATH/Runner" || true
+
+          # Build IPA structure
           rm -rf build/Payload
           mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/
 
+          # Copy bundle safely (better than cp -R for iOS bundles)
+          ditto "$APP_PATH" build/Payload/Runner.app
+
+          # Zip into an IPA (IMPORTANT: -y preserves symlinks)
           cd build
           rm -f iot-ble-scanner.ipa
-
-          # 🔑 CRITICAL: -y to preserve symlinks
           zip -r -y iot-ble-scanner.ipa Payload
 
           echo "=== IPA size ==="
           ls -lh iot-ble-scanner.ipa
 
+          echo "=== IPA content (top) ==="
+          unzip -l iot-ble-scanner.ipa | head -n 80
+
     artifacts:
       - build/iot-ble-scanner.ipa
+      - build/Runner.xcarchive
