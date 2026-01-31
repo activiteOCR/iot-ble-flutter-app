@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (unsigned IPA - sideloadly)
+    name: iOS Build (unsigned IPA for Sideloadly + min iOS check)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -28,7 +28,7 @@ workflows:
           set -e
           flutter build ios --release --no-codesign
 
-      - name: Xcode archive (iphoneos, no codesign)
+      - name: Xcode archive (iphoneos, no codesign, force deployment target)
         script: |
           set -e
           xcodebuild \
@@ -38,17 +38,18 @@ workflows:
             -sdk iphoneos \
             -archivePath build/Runner.xcarchive \
             archive \
+            IPHONEOS_DEPLOYMENT_TARGET=12.0 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      - name: Package unsigned IPA (ditto + preserve symlinks)
+      - name: Package unsigned IPA (ditto + preserve symlinks + plist dump)
         script: |
           set -e
 
           APP_PATH="build/Runner.xcarchive/Products/Applications/Runner.app"
 
-          echo "=== APP_PATH exists? ==="
+          echo "=== APP_PATH listing ==="
           ls -la "$APP_PATH" || true
 
           echo "=== Frameworks listing ==="
@@ -61,11 +62,14 @@ workflows:
           echo "=== Runner architecture ==="
           file "$APP_PATH/Runner" || true
 
+          echo "=== Info.plist key dump (MinimumOSVersion, SDK) ==="
+          plutil -p "$APP_PATH/Info.plist" | grep -E "MinimumOSVersion|DTPlatformVersion|DTSDKName|DTXcode" || true
+
           # Build IPA structure
           rm -rf build/Payload
           mkdir -p build/Payload
 
-          # Copy bundle safely (better than cp -R for iOS bundles)
+          # Copy bundle safely
           ditto "$APP_PATH" build/Payload/Runner.app
 
           # Zip into an IPA (IMPORTANT: -y preserves symlinks)
