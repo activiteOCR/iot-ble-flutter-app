@@ -1,6 +1,6 @@
 workflows:
   ios-workflow:
-    name: iOS Build (signed IPA)
+    name: iOS Build (unsigned IPA for Sideloadly)
     max_build_duration: 60
     instance_type: mac_mini_m2
 
@@ -9,24 +9,45 @@ workflows:
       xcode: latest
       cocoapods: default
 
-      # Ceci suppose que tu ajoutes les credentials dans Codemagic UI:
-      # - App Store Connect API key (ou Apple ID)
-      # - iOS Development certificate (.p12)
-      # - Provisioning profile (Development)
-
     scripts:
-      - name: Get Flutter packages
-        script: flutter pub get
+      - name: Flutter packages
+        script: |
+          flutter clean
+          flutter pub get
 
       - name: Install CocoaPods
         script: |
           cd ios
           pod install
+          cd ..
 
-      - name: Build signed IPA
+      - name: Build iOS (device, no codesign)
         script: |
-          flutter build ipa --release
+          flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        script: |
+          cd build/ios/iphoneos
+
+          # Create Payload structure required by IPA
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R Runner.app Payload/
+
+          # Zip as .ipa
+          rm -f iot-ble-scanner.ipa
+          zip -r iot-ble-scanner.ipa Payload
+
+          # Sanity checks (very useful in logs)
+          echo "=== IPA content (top) ==="
+          unzip -l iot-ble-scanner.ipa | head -n 60
+
+          echo "=== Runner arch ==="
+          file Payload/Runner.app/Runner || true
+
+          echo "=== Sizes ==="
+          ls -lh iot-ble-scanner.ipa
+          du -sh Payload/Runner.app
 
     artifacts:
-      - build/ios/ipa/*.ipa
-      - build/ios/archive/*.xcarchive
+      - build/ios/iphoneos/iot-ble-scanner.ipa
